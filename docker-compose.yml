@@ -4,7 +4,7 @@ services:
     build:  # added manually by DS
       dockerfile: Dockerfile  # added manually by DS
       context: .  # added manually by DS
-#    image: ghcr.io/vas3k/club:${GITHUB_SHA:-latest}  # commented this line manually by DS
+#    image: ghcr.io/vas3k/club:${GITHUB_SHA:-latest}  # Is this line necessary?
     command: make docker-run-production
     container_name: club_app
     environment:
@@ -23,7 +23,7 @@ services:
       - EMAIL_PORT
       - DEFAULT_FROM_EMAIL
     env_file:
-      - .env
+      - phangan_club_dev.env  # Deleted the original .env file
     restart: always
     volumes:
       - ./frontend/static:/tmp/static
