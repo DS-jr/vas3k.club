@@ -11,8 +11,8 @@ services:
       - MODE=production
       - PYTHONUNBUFFERED=1
       - DEBUG=false
-      - APP_HOST=http://159.89.196.106
-      - MEDIA_UPLOAD_URL=http://159.89.196.106/upload
+      - APP_HOST=http://localhost
+      - MEDIA_UPLOAD_URL=http://localhost/upload
       - POSTGRES_DB=vas3k_club
       - POSTGRES_USER=vas3k
       - POSTGRES_PASSWORD=vas3k
@@ -33,7 +33,7 @@ services:
       - redis
       - queue
     ports:
-      - "159.89.196.106:8814:8814"
+      - "0.0.0.0:8814:8814"
 
   queue:
     <<: *app
@@ -84,3 +84,12 @@ services:
     restart: always
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
+
+  nginx:
+    image: nginx
+    container_name: production_nginx
+    volumes:
+      - ./etc/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./frontend/:/tmp/frontend/
+    network_mode: "host"
+
