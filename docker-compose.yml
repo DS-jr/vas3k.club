@@ -1,100 +1,95 @@
-version: "3.7"
-
+version: "3"
 services:
   club_app: &app
-    build:
-      dockerfile: Dockerfile
-      context: .
-    command: make docker-run-dev
+    build:  # added manually by DS
+      dockerfile: Dockerfile  # added manually by DS
+      context: .  # added manually by DS
+#    image: ghcr.io/vas3k/club:${GITHUB_SHA:-latest}  # Is this line necessary?
+    command: make docker-run-production
     container_name: club_app
     environment:
-      - MODE=dev
-      - DEBUG=true
+      - MODE=production
       - PYTHONUNBUFFERED=1
+      - DEBUG=false
+      - APP_HOST=http://localhost
+      - MEDIA_UPLOAD_URL=http://localhost/upload
       - POSTGRES_DB=vas3k_club
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=vas3k
+      - POSTGRES_PASSWORD=vas3k
       - POSTGRES_HOST=postgres
       - REDIS_DB=0
       - REDIS_HOST=redis
+      - EMAIL_HOST
+      - EMAIL_PORT
+      - DEFAULT_FROM_EMAIL
+    env_file:
+      - phangan_club_dev.env  # Deleted the original .env file
     restart: always
     volumes:
-      - .:/app:delegated # enable hot code reload in debug mode
+      - ./frontend/static:/tmp/static
+      - ./gdpr/downloads:/app/gdpr/downloads
     depends_on:
       - postgres
       - redis
       - queue
-      - webpack
     ports:
-      - "8000:8000"
+      - "0.0.0.0:8814:8814"
 
   queue:
-    build:
-      dockerfile: Dockerfile
-      context: .
+    <<: *app
     command: make docker-run-queue
-    environment:
-      - MODE=dev
-      - DEBUG=true
-      - PYTHONUNBUFFERED=1
-      - POSTGRES_DB=vas3k_club
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_HOST=postgres
-      - REDIS_DB=0
-      - REDIS_HOST=redis
-    restart: always
-    volumes:
-      - .:/app:delegated
+    container_name: club_queue
     depends_on:
       - postgres
       - redis
+    ports: []
 
-# Uncomment these lines if you want to test the bot locally
-#  bot:
-#    build:
-#      dockerfile: Dockerfile
-#      context: .
-#    command: make docker-run-bot
-#    environment:
-#      - MODE=dev
-#      - DEBUG=true
-#      - PYTHONUNBUFFERED=1
-#      - POSTGRES_DB=vas3k_club
-#      - POSTGRES_USER=postgres
-#      - POSTGRES_PASSWORD=postgres
-#      - POSTGRES_HOST=postgres
-#      - REDIS_DB=0
-#      - REDIS_HOST=redis
-#    restart: always
-#    volumes:
-#      - .:/app:delegated
-#    depends_on:
-#      - club_app
-#      - postgres
-#      - redis
+  bot:
+    <<: *app
+    command: make docker-run-bot
+    container_name: club_bot
+    depends_on:
+      - club_app
+      - postgres
+      - redis
+    ports:
+      - "8816:8816"
+
+  cron:
+    <<: *app
+    command: make docker-run-cron
+    container_name: club_cron
+    depends_on:
+      - club_app
+      - postgres
+      - redis
+    ports: []
 
   postgres:
-    image: postgres:11
+    image: postgres:12
     container_name: club_postgres
+    restart: always
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=vas3k_club
+      POSTGRES_USER: vas3k
+      POSTGRES_PASSWORD: vas3k
+      POSTGRES_DB: vas3k_club
+    volumes:
+      - /home/vas3k/pgdata:/var/lib/postgresql/data:rw
     ports:
-      - "5432:5432"
+      - "127.0.0.1:54333:5432"
 
   redis:
     image: redis:alpine
+    container_name: club_redis
+    restart: always
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
-    ports:
-      - "6379:6379"
 
-  webpack:
-    image: node:14-slim
-    command: npm run watch
-    restart: always
+  nginx:
+    image: nginx
+    container_name: production_nginx
     volumes:
-      - .:/app:delegated
-    working_dir: /app/frontend
+      - ./etc/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./frontend/:/tmp/frontend/
+    network_mode: "host"
+
